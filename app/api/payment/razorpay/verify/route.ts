@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     const saved = await Order.create(orderDoc);
 
-    return NextResponse.json({ success: true, order: saved });
+    return NextResponse.json({ verified: true, success: true, order: saved, orderId: saved._id });
   } catch (err) {
     console.error("verify-order error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

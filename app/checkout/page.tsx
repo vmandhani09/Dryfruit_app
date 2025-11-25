@@ -250,7 +250,8 @@ export default function CheckoutPage() {
     razorpay_order_id: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
-    orderMeta?: any;
+    orderPayload?: any;
+    token?: string | null;
   }) => {
     try {
       const res = await fetch("/api/payment/razorpay/verify", {
@@ -377,11 +378,13 @@ export default function CheckoutPage() {
           // response: { razorpay_payment_id, razorpay_order_id, razorpay_signature }
           toast.loading("Verifying payment...");
           try {
+            const token = getToken();
             const verifyRes = await verifyRazorpayOnServer({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              orderMeta,
+              orderPayload: orderMeta,
+              token,
             });
 
             if (!verifyRes.ok) {
@@ -398,44 +401,20 @@ export default function CheckoutPage() {
               return;
             }
 
-            // Save order in DB (with payment details) - you can also combine verify+save on server if preferred
-            const token = getToken();
-            const orderPayload = {
-              items,
-              shippingAddress,
-              pricing,
-              paymentDetails: {
-                method: "razorpay",
-                transactionId: response.razorpay_payment_id,
-                razorpayOrderId: response.razorpay_order_id,
-                signature: response.razorpay_signature,
-                status: "completed",
-                metadata: verifyData, // server verification info
-              },
-              orderStatus: "confirmed",
-              paymentStatus: "completed",
-            };
-
-            const saveRes = await saveOrderRecord(orderPayload, token);
-            if (!saveRes.ok) {
-              const err = await saveRes.json().catch(() => ({ error: "Order save failed" }));
-              toast.error(err.error || "Order could not be saved. Contact support.");
-              setIsProcessing(false);
-              return;
-            }
-            const saved = await saveRes.json();
-
+            // Order is already saved by verify endpoint, use that response
             // success — clear cart, redirect to success page
             clearCart?.();
+            toast.dismiss();
             toast.success("Payment successful! Redirecting...");
             // store order id for success page
             if (typeof window !== "undefined") {
-              sessionStorage.setItem("orderId", saved.orderId ?? saved._id ?? "");
+              sessionStorage.setItem("orderId", verifyData.orderId ?? verifyData.order?._id ?? "");
             }
             setIsProcessing(false);
-            router.push("/payment-success");
+            router.push("/order-confirmation/" + (verifyData.orderId ?? verifyData.order?._id ?? ""));
           } catch (err) {
             console.error("Verify handler error:", err);
+            toast.dismiss();
             toast.error("Verification failed. Contact support.");
             setIsProcessing(false);
           }
