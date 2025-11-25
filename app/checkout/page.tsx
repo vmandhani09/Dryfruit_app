@@ -232,10 +232,11 @@ export default function CheckoutPage() {
 
   const createRazorpayOrderOnServer = async (amount: number, orderMeta: any) => {
     // server should create order and return { orderId: string, amount, currency, keyId }
+    // amount should be in paise (rupees × 100)
     const res = await fetch("/api/payment/razorpay/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, meta: orderMeta }),
+      body: JSON.stringify({ amount: Math.round(amount * 100), meta: orderMeta }),
     });
     return res;
   };
@@ -343,12 +344,20 @@ export default function CheckoutPage() {
 
       // Prepare options for Razorpay popup
       const options: any = {
-        key: keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // returned from server (your razorpay key_id)
-        amount: Math.round(allowedAmount) * 100 / 100, // amount from server (Razorpay expects paise on server side; we pass order_id instead)
+        key: keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: allowedAmount, // amount already in paise from server
         currency: currency || "INR",
         name: "Dryfruit Grove",
         description: "Order payment",
         order_id: razorpayOrderId,
+        prefill: {
+          name: shippingAddress.name,
+          email: shippingAddress.email,
+          contact: shippingAddress.phone,
+        },
+        theme: {
+          color: "#059669",
+        },
         handler: async function (response: any) {
           // response: { razorpay_payment_id, razorpay_order_id, razorpay_signature }
           toast.loading("Verifying payment...");
@@ -416,25 +425,13 @@ export default function CheckoutPage() {
             setIsProcessing(false);
           }
         },
-       prefill: {
-  name: form.name || user?.name || "",
-  email: form.email || user?.email || "",
-  contact:
-    form.mobile ||
-    (selectedAddressIndex !== null
-      ? savedAddresses[selectedAddressIndex]?.phone
-      : "") || "",
-},
-
         notes: {
           // optional metadata
-        },
-        theme: {
-          color: "#059669", // emerald-600
         },
         modal: {
           ondismiss: function () {
             toast("Payment popup closed.");
+            setIsProcessing(false);
           },
         },
       };

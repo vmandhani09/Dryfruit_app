@@ -15,7 +15,10 @@ export const metadata: Metadata = {
   description:
     "Premium dry fruits, nuts, seeds, and spices sourced from the finest farms. Discover freshness and flavor.",
   keywords: "dry fruits, nuts, seeds, spices, organic, premium, healthy",
-  generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
