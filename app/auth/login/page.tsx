@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Shield, Loader2 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useAuth, AUTH_TOKEN_EVENT } from "@/hooks/userAuth";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -229,5 +229,26 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center py-12 px-4">
+      <div className="flex flex-col items-center">
+        <Loader2 className="h-12 w-12 text-emerald-600 animate-spin" />
+        <p className="text-gray-600 mt-4">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
   );
 }

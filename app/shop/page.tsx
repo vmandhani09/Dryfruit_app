@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, Suspense } from "react"
 import { ProductCard } from "@/components/ui/product-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,12 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { RangeSlider } from "@/components/ui/range-slider"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, X, SlidersHorizontal } from "lucide-react"
+import { Search, X, SlidersHorizontal, Loader2 } from "lucide-react"
 import { categories } from "@/lib/data"
 import { useSearchParams } from "next/navigation";
 import { Product } from "@/types";
 
-export default function ShopPage() {
+function ShopContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -268,5 +268,39 @@ export default function ShopPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// Loading fallback component
+function ShopLoading() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-8">
+        <Skeleton className="h-9 w-64 mb-2" />
+        <Skeleton className="h-5 w-96" />
+      </div>
+      <div className="mb-6">
+        <Skeleton className="h-12 w-full max-w-2xl" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="space-y-3">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<ShopLoading />}>
+      <ShopContent />
+    </Suspense>
   )
 }
