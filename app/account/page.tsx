@@ -681,24 +681,83 @@ export default function AccountPage() {
                 </div>
               ) : orders && orders.length > 0 ? (
                 <div className="space-y-4">
-                  {orders.map((o) => (
-                    <div key={o._id || o.orderId} className="rounded border border-gray-200 p-4">
-                      <div className="flex justify-between">
-                        <div>
-                          <p className="font-medium">Order: {o.orderId || o._id}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</p>
+                  {orders.map((o) => {
+                    const statusColors: Record<string, string> = {
+                      pending: "bg-yellow-100 text-yellow-800",
+                      confirmed: "bg-blue-100 text-blue-800",
+                      shipped: "bg-purple-100 text-purple-800",
+                      delivered: "bg-green-100 text-green-800",
+                      cancelled: "bg-red-100 text-red-800",
+                    };
+                    const paymentColors: Record<string, string> = {
+                      completed: "bg-emerald-100 text-emerald-800",
+                      pending: "bg-yellow-100 text-yellow-800",
+                      failed: "bg-red-100 text-red-800",
+                    };
+                    return (
+                      <div
+                        key={o._id || o.orderId}
+                        className="rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => router.push(`/order-confirmation/${o._id || o.orderId}`)}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-sm font-mono">
+                                {o.orderId || o._id}
+                              </p>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[o.orderStatus] || "bg-gray-100 text-gray-800"}`}>
+                                {o.orderStatus?.charAt(0).toUpperCase() + o.orderStatus?.slice(1)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(o.createdAt).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}{" "}
+                              at{" "}
+                              {new Date(o.createdAt).toLocaleTimeString("en-IN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                            {o.items && o.items.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {o.items.length} item{o.items.length > 1 ? "s" : ""} •{" "}
+                                {o.items.slice(0, 2).map((item: any) => item.productName).join(", ")}
+                                {o.items.length > 2 ? ` +${o.items.length - 2} more` : ""}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right flex flex-col justify-between">
+                            <p className="font-bold text-lg text-emerald-600">
+                              ₹{o.pricing?.total ?? "—"}
+                            </p>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-block mt-1 ${paymentColors[o.paymentStatus] || "bg-gray-100 text-gray-800"}`}>
+                              {o.paymentStatus === "completed" ? "Paid" : o.paymentStatus}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">₹{o.pricing?.total ?? "—"}</p>
-                          <p className="text-sm text-muted-foreground">{o.orderStatus}</p>
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                          <p className="text-xs text-muted-foreground">
+                            Delivery to: {o.shippingAddress?.city || "N/A"}
+                          </p>
+                          <Button variant="ghost" size="sm" className="text-emerald-600 h-7 text-xs">
+                            View Details →
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="rounded border border-gray-200 p-6 text-center text-sm text-muted-foreground">
-                  You have no orders yet.
+                <div className="rounded border border-gray-200 p-8 text-center">
+                  <Package className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                  <p className="text-muted-foreground mb-4">You have no orders yet.</p>
+                  <Button onClick={() => router.push("/shop")}>
+                    Start Shopping
+                  </Button>
                 </div>
               )}
             </CardContent>

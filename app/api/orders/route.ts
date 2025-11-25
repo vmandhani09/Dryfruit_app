@@ -7,6 +7,41 @@ import { dbConnect } from "@/lib/dbConnect";
 
 const SECRET_KEY = process.env.JWT_SECRET || "default-secret-key";
 
+// GET - Fetch user's orders
+export async function GET(req: NextRequest) {
+  try {
+    await dbConnect();
+
+    // Read JWT from Authorization header
+    const authHeader = req.headers.get("authorization");
+    let userId = null;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const decoded = jwt.verify(token, SECRET_KEY) as any;
+        userId = decoded.userId;
+      } catch (err) {
+        console.error("JWT error:", err);
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const orders = await Order.find({ userId: new mongoose.Types.ObjectId(userId) })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({ orders }, { status: 200 });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     await dbConnect();
