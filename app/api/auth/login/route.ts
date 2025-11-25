@@ -77,12 +77,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 🔥 Set cookie (NOT HttpOnly because frontend reads token too)
+    // 🔥 Set cookie - secure in production
+    const isProduction = process.env.NODE_ENV === "production";
     response.cookies.set("token", token, {
       httpOnly: false,
       sameSite: "lax",
-      secure: false,
+      secure: isProduction,
       path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     // Extra header to force auth refresh

@@ -169,7 +169,9 @@ if (!res.ok) {
 
 // 🔥 AUTO-LOGIN
 localStorage.setItem("userToken", data.token);
-document.cookie = `token=${data.token}; path=/; SameSite=Lax;`;
+const isSecure = window.location.protocol === "https:";
+const cookieString = `token=${data.token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}${isSecure ? "; Secure" : ""}`;
+document.cookie = cookieString;
 
 setUser(data.user);
 

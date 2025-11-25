@@ -71,9 +71,13 @@ function LoginForm() {
 
       const token = data.token;
 
-      // Store JWT
+      // Store JWT in localStorage
       localStorage.setItem("userToken", token);
-      document.cookie = `token=${token}; path=/; SameSite=Lax;`;
+      
+      // Set cookie with proper attributes for production
+      const isSecure = window.location.protocol === "https:";
+      const cookieString = `token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}${isSecure ? "; Secure" : ""}`;
+      document.cookie = cookieString;
 
       setUser(data.user);
       window.dispatchEvent(

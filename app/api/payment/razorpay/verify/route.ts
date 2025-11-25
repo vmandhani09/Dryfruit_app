@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { dbConnect } from "@/lib/dbConnect";
 import Order from "@/lib/models/Order";
 import jwt from "jsonwebtoken";
+import { sendEmail, getOrderConfirmationEmailTemplate } from "@/lib/sendEmail";
 
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret-key";
@@ -76,6 +77,46 @@ export async function POST(req: NextRequest) {
     }
 
     const saved = await Order.create(orderDoc);
+
+    // Send order confirmation email
+    try {
+      const emailData = {
+        orderId: saved.orderId || saved._id.toString(),
+        customerName: orderPayload.shippingAddress?.name || "Customer",
+        email: orderPayload.shippingAddress?.email || "",
+        phone: orderPayload.shippingAddress?.phone || "",
+        items: orderPayload.items.map((item: any) => ({
+          productName: item.productName,
+          weight: item.weight,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        shippingAddress: {
+          address1: orderPayload.shippingAddress?.address1 || "",
+          address2: orderPayload.shippingAddress?.address2,
+          city: orderPayload.shippingAddress?.city || "",
+          state: orderPayload.shippingAddress?.state,
+          zip: orderPayload.shippingAddress?.zip || "",
+        },
+        pricing: orderPayload.pricing,
+        paymentMethod: "Razorpay",
+        transactionId: razorpay_payment_id,
+        orderDate: new Date(),
+      };
+
+      if (emailData.email) {
+        const emailHtml = getOrderConfirmationEmailTemplate(emailData);
+        await sendEmail(
+          emailData.email,
+          `Order Confirmed - ${emailData.orderId} | Dryfruit Grove`,
+          emailHtml
+        );
+        console.log("Order confirmation email sent to:", emailData.email);
+      }
+    } catch (emailErr) {
+      // Log but don't fail the order if email fails
+      console.error("Failed to send order confirmation email:", emailErr);
+    }
 
     return NextResponse.json({ verified: true, success: true, order: saved, orderId: saved._id });
   } catch (err) {
