@@ -325,8 +325,13 @@ export default function CheckoutPage() {
       const createRes = await createRazorpayOrderOnServer(Math.round(total), orderMeta);
 
       if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({ error: "Failed to create order" }));
-        toast.error(err.error || "Failed to create payment order");
+        const errData = await createRes.json().catch(() => ({ error: "Failed to create order" }));
+        // Ensure error is a string, not an object
+        const errorMsg = typeof errData.error === 'object' 
+          ? errData.error?.description || errData.error?.code || "Failed to create payment order"
+          : errData.error || "Failed to create payment order";
+        toast.dismiss();
+        toast.error(errorMsg);
         setIsProcessing(false);
         return;
       }

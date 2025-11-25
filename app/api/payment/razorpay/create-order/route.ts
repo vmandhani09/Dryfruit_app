@@ -1,17 +1,19 @@
-    // app/api/payment/razorpay/create-order/route.ts
+// app/api/payment/razorpay/create-order/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { dbConnect } from "@/lib/dbConnect";
+
 const RAZORPAY_BASE = "https://api.razorpay.com/v1/orders";
-
-const KEY_ID = process.env.RAZORPAY_KEY_ID;
-const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
-
-if (!KEY_ID || !KEY_SECRET) {
-  console.warn("Razorpay keys are not set in env.");
-}
 
 export async function POST(req: NextRequest) {
   try {
+    const KEY_ID = process.env.RAZORPAY_KEY_ID;
+    const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!KEY_ID || !KEY_SECRET) {
+      console.error("Razorpay keys are not set in env.");
+      return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
+    }
+
     await dbConnect();
     const body = await req.json();
 
@@ -22,6 +24,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
+    // Razorpay minimum amount is 100 paise (₹1)
+    if (amount < 100) {
+      return NextResponse.json({ error: "Minimum order amount is ₹1" }, { status: 400 });
+    }
+
     const payload = {
       amount: Math.round(amount), // integer (paise)
       currency: body.currency || "INR",
@@ -29,6 +36,8 @@ export async function POST(req: NextRequest) {
       payment_capture: body.payment_capture ?? 1, // auto-capture
       notes: body.notes || {},
     };
+
+    console.log("Creating Razorpay order with payload:", payload);
 
     const auth = Buffer.from(`${KEY_ID}:${KEY_SECRET}`).toString("base64");
 
@@ -45,7 +54,11 @@ export async function POST(req: NextRequest) {
 
     if (!r.ok) {
       console.error("Razorpay create-order failed", data);
-      return NextResponse.json({ error: data.error || "Failed to create order" }, { status: 500 });
+      // Extract error message properly
+      const errorMsg = typeof data.error === 'object' 
+        ? data.error?.description || data.error?.code || "Failed to create order"
+        : data.error || "Failed to create order";
+      return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
 
     // return razorpay order object to client with keyId
@@ -57,8 +70,8 @@ export async function POST(req: NextRequest) {
       keyId: KEY_ID,
       order: data 
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("create-order error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }

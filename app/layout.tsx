@@ -17,7 +17,9 @@ export const metadata: Metadata = {
   keywords: "dry fruits, nuts, seeds, spices, organic, premium, healthy",
   generator: 'v0.dev',
   icons: {
-    icon: '/icon.svg',
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 }
 
