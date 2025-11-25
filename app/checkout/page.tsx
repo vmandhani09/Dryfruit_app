@@ -233,12 +233,17 @@ export default function CheckoutPage() {
   const createRazorpayOrderOnServer = async (amount: number, orderMeta: any) => {
     // server should create order and return { orderId: string, amount, currency, keyId }
     // amount should be in paise (rupees × 100)
-    const res = await fetch("/api/payment/razorpay/create-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: Math.round(amount * 100), meta: orderMeta }),
-    });
-    return res;
+    try {
+      const res = await fetch("/api/payment/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Math.round(amount * 100), meta: orderMeta }),
+      });
+      return res;
+    } catch (err) {
+      console.error("Network error creating Razorpay order:", err);
+      throw new Error("Network error. Please check your internet connection.");
+    }
   };
 
   const verifyRazorpayOnServer = async (payload: {
@@ -247,12 +252,17 @@ export default function CheckoutPage() {
     razorpay_signature: string;
     orderMeta?: any;
   }) => {
-    const res = await fetch("/api/payment/razorpay/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    return res;
+    try {
+      const res = await fetch("/api/payment/razorpay/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      return res;
+    } catch (err) {
+      console.error("Network error verifying payment:", err);
+      throw new Error("Network error during verification.");
+    }
   };
 
   const saveOrderRecord = async (orderPayload: any, token?: string | null) => {
@@ -451,9 +461,11 @@ export default function CheckoutPage() {
       });
       rzp.open();
       toast.dismiss(); // remove previous loading toasts
-    } catch (err) {
+    } catch (err: any) {
       console.error("Checkout error:", err);
-      toast.error("An error occurred placing your order.");
+      toast.dismiss();
+      const errorMessage = err?.message || "An error occurred placing your order.";
+      toast.error(errorMessage);
       setIsProcessing(false);
     }
   };
