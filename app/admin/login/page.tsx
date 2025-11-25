@@ -1,12 +1,13 @@
 "use client";
 
-  import { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Shield, User } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -71,7 +72,7 @@ export default function AdminLoginPage() {
                     value={formData.email}
                     onChange={handleInputChange}
                     className="pl-10"
-                    placeholder="admin@krishnanaturals.com"
+                    placeholder="admin@DryfruitGrove.com"
                     required
                   />
                 </div>
@@ -110,8 +111,30 @@ export default function AdminLoginPage() {
               </Button>
             </form>
 
+            {/* Customer Login Link */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-3">Not an admin?</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() => { window.location.href = "/auth/login"; }}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Sign in as Customer
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Back to Home */}
+        <div className="text-center mt-6">
+          <Link href="/" className="text-gray-400 hover:text-white text-sm">
+            ← Back to Store
+          </Link>
+        </div>
       </div>
     </div>
   );

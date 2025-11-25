@@ -146,7 +146,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                   <User className="size-4" />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">Admin User</span>
-                    <span className="truncate text-xs">admin@krishnanaturals.com</span>
+                    <span className="truncate text-xs">admin@DryfruitGrove.com</span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>

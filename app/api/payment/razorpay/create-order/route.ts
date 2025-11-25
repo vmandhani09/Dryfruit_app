@@ -48,8 +48,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: data.error || "Failed to create order" }, { status: 500 });
     }
 
-    // return razorpay order object to client
-    return NextResponse.json({ success: true, order: data });
+    // return razorpay order object to client with keyId
+    return NextResponse.json({ 
+      success: true, 
+      orderId: data.id,
+      amount: data.amount,
+      currency: data.currency,
+      keyId: KEY_ID,
+      order: data 
+    });
   } catch (err) {
     console.error("create-order error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

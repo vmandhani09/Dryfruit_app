@@ -1,49 +1,139 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-  import { Badge } from "@/components/ui/badge"
-  import Link from "next/link"
-  import { Button } from "@/components/ui/button"
-  import { Users, Package, ShoppingCart, TrendingUp, DollarSign, AlertCircle, Plus } from 'lucide-react'
-  import Product from "@/lib/models/product"
-  import User from "@/lib/models/user"
+import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Users, Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, AlertCircle, Plus } from 'lucide-react'
+import Product from "@/lib/models/product"
+import User from "@/lib/models/user"
+import Order from "@/lib/models/Order"
 import { dbConnect } from "@/lib/dbConnect"
 import { requireAdmin } from "@/lib/admin-auth"
-
-const SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
 
 async function getDashboardStats() {
   await dbConnect();
 
-  const totalUsers = await User.countDocuments();
-  const products = await Product.find({});
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  // User stats
+  const totalUsers = await User.countDocuments({ role: "user" });
+  const thisMonthUsers = await User.countDocuments({ 
+    role: "user", 
+    createdAt: { $gte: startOfMonth } 
+  });
+  const lastMonthUsers = await User.countDocuments({ 
+    role: "user", 
+    createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } 
+  });
+  const usersGrowth = lastMonthUsers > 0 
+    ? Math.round(((thisMonthUsers - lastMonthUsers) / lastMonthUsers) * 100) 
+    : thisMonthUsers > 0 ? 100 : 0;
+
+  // Product stats
+  const products = await Product.find({}).lean();
+  const totalProducts = products.length;
+  const lowStockProducts = products.filter((p: any) => {
+    const minStock = p.weights?.reduce((min: number, w: any) => 
+      w.quantity < min ? w.quantity : min, Infinity) || 0;
+    return minStock < 20;
+  }).length;
+
+  // Order stats
+  const totalOrders = await Order.countDocuments();
+  const thisMonthOrders = await Order.countDocuments({ createdAt: { $gte: startOfMonth } });
+  const lastMonthOrders = await Order.countDocuments({ 
+    createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } 
+  });
+  const ordersGrowth = lastMonthOrders > 0 
+    ? Math.round(((thisMonthOrders - lastMonthOrders) / lastMonthOrders) * 100) 
+    : thisMonthOrders > 0 ? 100 : 0;
+
+  const pendingOrders = await Order.countDocuments({ orderStatus: "pending" });
+
+  // Revenue stats
+  const totalRevenueResult = await Order.aggregate([
+    { $match: { paymentStatus: "completed" } },
+    { $group: { _id: null, total: { $sum: "$pricing.total" } } }
+  ]);
+  const totalRevenue = totalRevenueResult[0]?.total || 0;
+
+  const thisMonthRevenueResult = await Order.aggregate([
+    { $match: { paymentStatus: "completed", createdAt: { $gte: startOfMonth } } },
+    { $group: { _id: null, total: { $sum: "$pricing.total" } } }
+  ]);
+  const thisMonthRevenue = thisMonthRevenueResult[0]?.total || 0;
+
+  const lastMonthRevenueResult = await Order.aggregate([
+    { $match: { paymentStatus: "completed", createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+    { $group: { _id: null, total: { $sum: "$pricing.total" } } }
+  ]);
+  const lastMonthRevenue = lastMonthRevenueResult[0]?.total || 0;
+  const revenueGrowth = lastMonthRevenue > 0 
+    ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100) 
+    : thisMonthRevenue > 0 ? 100 : 0;
+
+  // Recent orders
+  const recentOrders = await Order.find()
+    .sort({ createdAt: -1 })
+    .limit(4)
+    .select("orderId shippingAddress pricing orderStatus createdAt")
+    .lean();
+
+  // Category stats
+  const categoryStats = await Order.aggregate([
+    { $match: { paymentStatus: "completed" } },
+    { $unwind: "$items" },
+    {
+      $lookup: {
+        from: "products",
+        localField: "items.productId",
+        foreignField: "_id",
+        as: "product"
+      }
+    },
+    { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: "$product.category",
+        revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } }
+      }
+    },
+    { $sort: { revenue: -1 } },
+    { $limit: 4 }
+  ]);
+
+  const totalCategoryRevenue = categoryStats.reduce((sum, cat) => sum + cat.revenue, 0) || 1;
+  const formattedCategoryStats = categoryStats.map(cat => ({
+    name: cat._id || "Unknown",
+    percentage: Math.round((cat.revenue / totalCategoryRevenue) * 100)
+  }));
 
   return {
     totalUsers,
-    totalProducts: products.length,
-    lowStockProducts: products.filter((p) => p.stockQuantity < 20).length,
+    usersGrowth,
+    totalProducts,
+    lowStockProducts,
+    totalOrders,
+    ordersGrowth,
+    pendingOrders,
+    totalRevenue,
+    revenueGrowth,
+    recentOrders: recentOrders.map((order: any) => ({
+      id: order.orderId,
+      customer: order.shippingAddress?.name || "Unknown",
+      amount: order.pricing?.total || 0,
+      status: order.orderStatus
+    })),
+    categoryStats: formattedCategoryStats
   };
 }
 
 export default async function AdminDashboardPage() {
-  await requireAdmin(); // ✅ Ensure admin authentication
+  await requireAdmin();
 
-  const dynamicStats = await getDashboardStats(); // ✅ Fetch dynamic stats
-
-  // ✅ Keep static values that don’t need to be fetched
-  const staticStats = {
-    totalOrders: 156,
-    totalRevenue: 125000,
-    pendingOrders: 12,
-  };
-
-  // ✅ Merge static and dynamic data
-  const stats = { ...staticStats, ...dynamicStats };
-
-  const recentOrders = [
-    { id: "ORD-001", customer: "John Doe", amount: 899, status: "pending" },
-    { id: "ORD-002", customer: "Jane Smith", amount: 1299, status: "confirmed" },
-    { id: "ORD-003", customer: "Mike Johnson", amount: 649, status: "shipped" },
-    { id: "ORD-004", customer: "Sarah Wilson", amount: 999, status: "delivered" },
-  ];
+  const stats = await getDashboardStats();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -55,12 +145,13 @@ export default async function AdminDashboardPage() {
         return "bg-yellow-100 text-yellow-800";
       case "pending":
         return "bg-orange-100 text-orange-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
- 
   return (
     <div className="p-6">
       <div className="mb-8">
@@ -79,6 +170,16 @@ export default async function AdminDashboardPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                <div className="flex items-center mt-1">
+                  {stats.usersGrowth >= 0 ? (
+                    <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+                  )}
+                  <span className={`text-xs ${stats.usersGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {stats.usersGrowth >= 0 ? '+' : ''}{stats.usersGrowth}% this month
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -93,6 +194,11 @@ export default async function AdminDashboardPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Products</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalProducts}</p>
+                {stats.lowStockProducts > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    {stats.lowStockProducts} low stock
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -107,6 +213,16 @@ export default async function AdminDashboardPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Orders</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                <div className="flex items-center mt-1">
+                  {stats.ordersGrowth >= 0 ? (
+                    <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+                  )}
+                  <span className={`text-xs ${stats.ordersGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {stats.ordersGrowth >= 0 ? '+' : ''}{stats.ordersGrowth}% this month
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -121,6 +237,16 @@ export default async function AdminDashboardPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
                 <p className="text-2xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+                <div className="flex items-center mt-1">
+                  {stats.revenueGrowth >= 0 ? (
+                    <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+                  )}
+                  <span className={`text-xs ${stats.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth}% this month
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -162,20 +288,26 @@ export default async function AdminDashboardPage() {
             <CardTitle>Recent Orders</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{order.id}</p>
-                    <p className="text-sm text-gray-600">{order.customer}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">₹{order.amount}</p>
-                    <Badge className={getStatusColor(order.status)}>{order.status.toUpperCase()}</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {stats.recentOrders.length > 0 ? (
+              <div className="space-y-4">
+                {stats.recentOrders.map((order) => (
+                  <Link key={order.id} href={`/admin/orders/${order.id}`}>
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div>
+                        <p className="font-medium font-mono">{order.id}</p>
+                        <p className="text-sm text-gray-600">{order.customer}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">₹{order.amount.toLocaleString()}</p>
+                        <Badge className={getStatusColor(order.status)}>{order.status.toUpperCase()}</Badge>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No orders yet</p>
+            )}
           </CardContent>
         </Card>
 
@@ -197,9 +329,13 @@ export default async function AdminDashboardPage() {
               <p className="text-sm text-yellow-600">{stats.pendingOrders} orders need attention</p>
             </div>
 
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm font-medium text-green-800">Revenue Growth</p>
-              <p className="text-sm text-green-600">15% increase this month</p>
+            <div className={`p-3 ${stats.revenueGrowth >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} border rounded-lg`}>
+              <p className={`text-sm font-medium ${stats.revenueGrowth >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                Revenue {stats.revenueGrowth >= 0 ? 'Growth' : 'Decline'}
+              </p>
+              <p className={`text-sm ${stats.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth}% this month
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -212,24 +348,18 @@ export default async function AdminDashboardPage() {
             <CardTitle className="text-lg">Top Categories</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">Nuts</span>
-                <span className="text-sm font-medium">45%</span>
+            {stats.categoryStats.length > 0 ? (
+              <div className="space-y-3">
+                {stats.categoryStats.map((category) => (
+                  <div key={category.name} className="flex justify-between">
+                    <span className="text-sm">{category.name}</span>
+                    <span className="text-sm font-medium">{category.percentage}%</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Dry Fruits</span>
-                <span className="text-sm font-medium">30%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Spices</span>
-                <span className="text-sm font-medium">15%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Seeds</span>
-                <span className="text-sm font-medium">10%</span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-gray-500 text-sm">No category data available</p>
+            )}
           </CardContent>
         </Card>
 
@@ -240,16 +370,28 @@ export default async function AdminDashboardPage() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-center">
-                <TrendingUp className="h-4 w-4 text-green-500 mr-2" />
-                <span className="text-sm">Orders: +23%</span>
+                {stats.ordersGrowth >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-green-500 mr-2" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-500 mr-2" />
+                )}
+                <span className="text-sm">Orders: {stats.ordersGrowth >= 0 ? '+' : ''}{stats.ordersGrowth}%</span>
               </div>
               <div className="flex items-center">
-                <TrendingUp className="h-4 w-4 text-green-500 mr-2" />
-                <span className="text-sm">Revenue: +15%</span>
+                {stats.revenueGrowth >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-green-500 mr-2" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-500 mr-2" />
+                )}
+                <span className="text-sm">Revenue: {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth}%</span>
               </div>
               <div className="flex items-center">
-                <TrendingUp className="h-4 w-4 text-green-500 mr-2" />
-                <span className="text-sm">New Users: +8%</span>
+                {stats.usersGrowth >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-green-500 mr-2" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-500 mr-2" />
+                )}
+                <span className="text-sm">New Users: {stats.usersGrowth >= 0 ? '+' : ''}{stats.usersGrowth}%</span>
               </div>
             </div>
           </CardContent>

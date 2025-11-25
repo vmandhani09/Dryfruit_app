@@ -343,7 +343,7 @@ export default function CheckoutPage() {
 
       // Prepare options for Razorpay popup
       const options: any = {
-        key: keyId, // returned from server (your razorpay key_id)
+        key: keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // returned from server (your razorpay key_id)
         amount: Math.round(allowedAmount) * 100 / 100, // amount from server (Razorpay expects paise on server side; we pass order_id instead)
         currency: currency || "INR",
         name: "Dryfruit Grove",

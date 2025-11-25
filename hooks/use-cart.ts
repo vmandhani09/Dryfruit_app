@@ -123,6 +123,16 @@ export function useCart() {
     const token = localStorage.getItem("userToken");
 
     if (token) {
+      // First, deduplicate cart items in DB
+      try {
+        await fetch("/api/user/cart/dedupe", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) {
+        console.error("Dedupe error:", err);
+      }
+
       const res = await fetch("/api/user/cart", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -137,7 +147,9 @@ export function useCart() {
           }))
         : [];
 
-      const merged = await fetchProductDetails(items);
+      // Deduplicate DB cart items (same productId + weight) - extra safety
+      const dedupedItems = dedupeCart(items);
+      const merged = await fetchProductDetails(dedupedItems);
       setCart(merged);
     } else {
       let localCart = dedupeCart(getLocalCart());

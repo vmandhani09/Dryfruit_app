@@ -37,7 +37,7 @@ export const users: User[] = [
   {
     _id: "4",
     name: "Admin User",
-    email: "admin@krishnanaturals.com",
+    email: "admin@DryfruitGrove.com",
     password: "admin123",
     role: "admin",
     mobile: "+91 9876543213",

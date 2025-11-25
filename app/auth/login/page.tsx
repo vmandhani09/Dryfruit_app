@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useAuth, AUTH_TOKEN_EVENT } from "@/hooks/userAuth";
@@ -209,6 +209,22 @@ export default function LoginPage() {
                 </p>
               </div>
             </form>
+
+            {/* Admin Login Link */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mb-3">Are you an administrator?</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() => { window.location.href = "/admin/login"; }}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Sign in as Admin
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

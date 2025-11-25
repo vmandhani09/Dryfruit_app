@@ -10,9 +10,12 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
 
   // Check if current path is admin route
   const isAdminRoute = pathname.startsWith("/admin");
+  
+  // Check if current path is auth route (login, register, forgot-password)
+  const isAuthRoute = pathname.startsWith("/auth") || pathname.startsWith("/forgot-password");
 
-  if (isAdminRoute) {
-    // Admin routes: no header/footer, full height
+  // Admin or Auth routes: no header/footer, full height
+  if (isAdminRoute || isAuthRoute) {
     return <div className="min-h-screen">{children}</div>;
   }
 
