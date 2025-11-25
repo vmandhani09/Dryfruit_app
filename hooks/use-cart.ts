@@ -271,14 +271,28 @@ export function useCart() {
   const clearCart = async () => {
     const token = localStorage.getItem("userToken");
 
+    // Clear local state immediately for instant UI update
+    setCart([]);
+
     if (token) {
-      await fetch("/api/user/cart", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } else {
-      setLocalCart([]);
+      try {
+        await fetch("/api/user/cart", {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log("Cart cleared from database");
+      } catch (err) {
+        console.error("Error clearing cart from DB:", err);
+      }
     }
+    
+    // Clear ALL cart-related localStorage items
+    localStorage.removeItem("guestCart");
+    localStorage.removeItem("cartSynced");
+    localStorage.removeItem("checkout_pricing");
+    
+    // Also use setLocalCart to ensure consistency
+    setLocalCart([]);
 
     window.dispatchEvent(new Event("cartUpdated"));
   };

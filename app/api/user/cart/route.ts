@@ -103,23 +103,55 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ✅ DELETE: Remove Cart Item using SKU and Weight
+// ✅ DELETE: Remove Cart Item using SKU and Weight, OR clear all cart items
 export async function DELETE(req: NextRequest) {
   try {
     await dbConnect();
-    const { type, user } = getCurrentUserType(req);
-    if (type !== "user" || !user) {
+    
+    // Get userId from JWT
+    const authHeader = req.headers.get("authorization");
+    let userId = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const decoded = jwt.verify(token, SECRET_KEY) as any;
+        userId = decoded.userId;
+      } catch (err) {
+        console.error("JWT error:", err);
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { productId, weight } = await req.json();
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    if (!productId || !weight) {
-      return NextResponse.json({ error: "Missing productId or weight" }, { status: 400 });
+    // Try to parse body - might be empty for "clear all" operation
+    let body: any = {};
+    try {
+      const text = await req.text();
+      if (text) {
+        body = JSON.parse(text);
+      }
+    } catch {
+      // No body or invalid JSON - treat as "clear all"
     }
 
-    // Convert IDs to ObjectId for deletion
-    const userObjectId = new mongoose.Types.ObjectId(user._id);
+    const { productId, weight } = body;
+
+    // If no productId and weight provided, clear ALL cart items for this user
+    if (!productId || !weight) {
+      const result = await CartItem.deleteMany({ userId: userObjectId });
+      console.log(`Cleared ${result.deletedCount} cart items for user ${userId}`);
+      return NextResponse.json({ 
+        message: "Cart cleared", 
+        deletedCount: result.deletedCount 
+      });
+    }
+
+    // Otherwise, delete specific item
     const productObjectId = new mongoose.Types.ObjectId(productId);
 
     const deletedItem = await CartItem.findOneAndDelete({
@@ -131,10 +163,6 @@ export async function DELETE(req: NextRequest) {
     if (!deletedItem) {
       return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
     }
-
-    await User.findByIdAndUpdate(user._id, {
-      $pull: { cart: deletedItem._id },
-    });
 
     return NextResponse.json({ message: "Cart item removed", deletedItem });
   } catch (error) {
