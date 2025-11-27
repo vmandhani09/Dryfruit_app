@@ -134,7 +134,6 @@ export default function UsersTable() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Verified</TableHead>
                   <TableHead>Joined Date</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -149,11 +148,6 @@ export default function UsersTable() {
                     <TableCell>
                       <Badge variant="secondary" className="capitalize">
                         {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.isVerified ? "default" : "destructive"} className="capitalize">
-                        {user.isVerified ? "Verified" : "Unverified"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-stone-600">
