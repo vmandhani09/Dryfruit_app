@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {dbConnect} from "@/lib/dbConnect";
 import Order from "@/lib/models/Order";
+import { sendEmail, getOrderStatusUpdateEmailTemplate } from "@/lib/sendEmail";
 
 export async function GET(
   req: NextRequest,
@@ -91,6 +92,53 @@ export async function PATCH(
         { error: "Order not found" },
         { status: 404 }
       );
+    }
+
+    // Send email notification if order status was updated
+    if (orderStatus) {
+      try {
+        const customerEmail = order.shippingAddress?.email;
+        const customerName = order.shippingAddress?.name || "Customer";
+
+        if (customerEmail) {
+          const emailData = {
+            orderId: order.orderId || order._id.toString(),
+            customerName,
+            newStatus: orderStatus,
+            items: order.items?.map((item: any) => ({
+              productName: item.productName,
+              weight: item.weight,
+              quantity: item.quantity,
+            })),
+            shippingAddress: order.shippingAddress ? {
+              address1: order.shippingAddress.address1,
+              city: order.shippingAddress.city,
+              state: order.shippingAddress.state,
+              zip: order.shippingAddress.zip,
+            } : undefined,
+            total: order.pricing?.total,
+          };
+
+          const statusLabels: Record<string, string> = {
+            confirmed: "Order Confirmed",
+            shipped: "Order Shipped",
+            delivered: "Order Delivered",
+            cancelled: "Order Cancelled",
+            pending: "Order Pending",
+          };
+
+          const emailHtml = getOrderStatusUpdateEmailTemplate(emailData);
+          await sendEmail(
+            customerEmail,
+            `${statusLabels[orderStatus] || "Order Update"} - ${emailData.orderId} | Dryfruit Grove`,
+            emailHtml
+          );
+          console.log(`Order status email sent to ${customerEmail} for status: ${orderStatus}`);
+        }
+      } catch (emailErr) {
+        // Log but don't fail the update if email fails
+        console.error("Failed to send order status email:", emailErr);
+      }
     }
 
     return NextResponse.json({

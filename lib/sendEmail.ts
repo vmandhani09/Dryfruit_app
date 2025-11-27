@@ -410,6 +410,266 @@ export function getVerificationEmailTemplate(verificationLink: string, name?: st
   `;
 }
 
+// ✅ Order Status Update Email Data Type
+type OrderStatusUpdateData = {
+  orderId: string;
+  customerName: string;
+  newStatus: string;
+  items?: { productName: string; weight: string; quantity: number }[];
+  shippingAddress?: {
+    address1: string;
+    city: string;
+    state?: string;
+    zip: string;
+  };
+  total?: number;
+};
+
+// ✅ Order Status Update Email Template
+export function getOrderStatusUpdateEmailTemplate(data: OrderStatusUpdateData) {
+  const statusConfig: Record<string, { icon: string; color: string; bgColor: string; message: string }> = {
+    confirmed: {
+      icon: "✓",
+      color: "#2563eb",
+      bgColor: "#dbeafe",
+      message: "Your order has been confirmed and is being prepared for shipping.",
+    },
+    shipped: {
+      icon: "🚚",
+      color: "#7c3aed",
+      bgColor: "#ede9fe",
+      message: "Great news! Your order has been shipped and is on its way to you.",
+    },
+    delivered: {
+      icon: "📦",
+      color: "#059669",
+      bgColor: "#d1fae5",
+      message: "Your order has been delivered! We hope you enjoy your purchase.",
+    },
+    cancelled: {
+      icon: "✕",
+      color: "#dc2626",
+      bgColor: "#fee2e2",
+      message: "Your order has been cancelled. If you have any questions, please contact us.",
+    },
+    pending: {
+      icon: "⏳",
+      color: "#d97706",
+      bgColor: "#fef3c7",
+      message: "Your order is pending and will be processed soon.",
+    },
+  };
+
+  const status = statusConfig[data.newStatus] || statusConfig.pending;
+  const statusLabel = data.newStatus.charAt(0).toUpperCase() + data.newStatus.slice(1);
+
+  const itemsHtml = data.items?.length
+    ? data.items
+        .map(
+          (item) => `
+        <tr>
+          <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb;">
+            <p style="margin: 0; font-weight: 500; color: #1f2937;">${item.productName}</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">${item.weight}</p>
+          </td>
+          <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #4b5563;">
+            ×${item.quantity}
+          </td>
+        </tr>
+      `
+        )
+        .join("")
+    : "";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+          <td align="center" style="padding: 40px 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: bold;">
+                    🥜 Dryfruit Grove
+                  </h1>
+                  <p style="color: #d1fae5; margin: 8px 0 0 0; font-size: 14px;">
+                    Order Status Update
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Status Icon -->
+              <tr>
+                <td style="padding: 30px 30px 0 30px; text-align: center;">
+                  <div style="width: 80px; height: 80px; background-color: ${status.bgColor}; border-radius: 50%; display: inline-block; line-height: 80px;">
+                    <span style="font-size: 40px;">${status.icon}</span>
+                  </div>
+                  <h2 style="color: ${status.color}; margin: 20px 0 5px 0; font-size: 24px;">
+                    Order ${statusLabel}!
+                  </h2>
+                  <p style="color: #6b7280; margin: 0 0 20px 0; font-size: 15px; line-height: 1.5;">
+                    Hello ${data.customerName},<br>
+                    ${status.message}
+                  </p>
+                </td>
+              </tr>
+              
+              <!-- Order ID Box -->
+              <tr>
+                <td style="padding: 0 30px 25px 30px;">
+                  <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; text-align: center;">
+                    <p style="color: #6b7280; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
+                      Order ID
+                    </p>
+                    <p style="color: #1f2937; font-size: 18px; font-weight: bold; margin: 5px 0 0 0; font-family: 'Courier New', monospace;">
+                      ${data.orderId}
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              ${
+                data.newStatus === "delivered"
+                  ? `
+              <!-- Delivered Message -->
+              <tr>
+                <td style="padding: 0 30px 25px 30px;">
+                  <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #059669; font-size: 16px; margin: 0; font-weight: 600;">
+                      🎉 Thank you for shopping with us!
+                    </p>
+                    <p style="color: #6b7280; font-size: 14px; margin: 10px 0 0 0;">
+                      We hope you love your products. If you have any feedback, we'd love to hear from you!
+                    </p>
+                  </div>
+                </td>
+              </tr>
+              `
+                  : ""
+              }
+
+              ${
+                data.newStatus === "shipped"
+                  ? `
+              <!-- Shipped Message -->
+              <tr>
+                <td style="padding: 0 30px 25px 30px;">
+                  <div style="background-color: #ede9fe; border: 1px solid #c4b5fd; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="color: #7c3aed; font-size: 16px; margin: 0; font-weight: 600;">
+                      🚚 Your order is on the way!
+                    </p>
+                    <p style="color: #6b7280; font-size: 14px; margin: 10px 0 0 0;">
+                      You will receive your package soon. Keep an eye out for the delivery!
+                    </p>
+                  </div>
+                </td>
+              </tr>
+              `
+                  : ""
+              }
+              
+              ${
+                itemsHtml
+                  ? `
+              <!-- Order Items -->
+              <tr>
+                <td style="padding: 0 30px 20px 30px;">
+                  <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 15px; border-bottom: 2px solid #10b981; padding-bottom: 8px;">
+                    📦 Order Items
+                  </h3>
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                    ${itemsHtml}
+                  </table>
+                </td>
+              </tr>
+              `
+                  : ""
+              }
+
+              ${
+                data.shippingAddress
+                  ? `
+              <!-- Shipping Address -->
+              <tr>
+                <td style="padding: 0 30px 25px 30px;">
+                  <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px;">
+                      📍 Delivery Address
+                    </h4>
+                    <p style="color: #6b7280; font-size: 13px; margin: 0; line-height: 1.5;">
+                      ${data.shippingAddress.address1}<br>
+                      ${data.shippingAddress.city} - ${data.shippingAddress.zip}<br>
+                      ${data.shippingAddress.state || ""}
+                    </p>
+                  </div>
+                </td>
+              </tr>
+              `
+                  : ""
+              }
+
+              ${
+                data.total
+                  ? `
+              <!-- Total -->
+              <tr>
+                <td style="padding: 0 30px 25px 30px;">
+                  <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px; text-align: center;">
+                    <p style="color: #6b7280; font-size: 13px; margin: 0;">Order Total</p>
+                    <p style="color: #059669; font-size: 24px; font-weight: bold; margin: 5px 0 0 0;">₹${data.total.toFixed(2)}</p>
+                  </div>
+                </td>
+              </tr>
+              `
+                  : ""
+              }
+              
+              <!-- CTA Button -->
+              <tr>
+                <td style="padding: 0 30px 30px 30px; text-align: center;">
+                  <a href="${process.env.NEXT_PUBLIC_BASE_URL || "https://dryfruit-grove.vercel.app"}/order-confirmation/${data.orderId}" 
+                     style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                    View Order Details
+                  </a>
+                </td>
+              </tr>
+              
+              <!-- Help Section -->
+              <tr>
+                <td style="background-color: #f9fafb; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                  <p style="color: #6b7280; font-size: 13px; margin: 0;">
+                    Questions? Contact us at <a href="tel:+919359682328" style="color: #059669; text-decoration: none;">+91 9359682328</a>
+                    or <a href="mailto:info.dryfruitgrove@gmail.com" style="color: #059669; text-decoration: none;">info.dryfruitgrove@gmail.com</a>
+                  </p>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #1f2937; padding: 20px 30px; text-align: center;">
+                  <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} Dryfruit Grove. All rights reserved.
+                  </p>
+                </td>
+              </tr>
+              
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
 // ✅ Email sender function
 export async function sendEmail(to: string, subject: string, html: string) {
   try {
