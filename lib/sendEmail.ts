@@ -244,7 +244,7 @@ export function getOrderConfirmationEmailTemplate(order: OrderEmailData) {
                     © ${new Date().getFullYear()} Dryfruit Grove. All rights reserved.
                   </p>
                   <p style="color: #6b7280; font-size: 11px; margin: 8px 0 0 0;">
-                    Mumbai, Maharashtra, India
+                    Nanded, Maharashtra, India
                   </p>
                 </td>
               </tr>

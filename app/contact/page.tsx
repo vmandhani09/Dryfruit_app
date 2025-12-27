@@ -88,7 +88,7 @@ export default function ContactPage() {
               {
                 icon: <MapPin className="h-6 w-6 text-emerald-600" />,
                 title: "Address",
-                lines: ["123 Spice Market Street", "Mumbai, Maharashtra 400001"],
+                lines: ["123 Spice Market Street", "Nanded, Maharashtra 400001"],
               },
               {
                 icon: <Clock className="h-6 w-6 text-emerald-600" />,
