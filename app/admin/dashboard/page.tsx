@@ -232,7 +232,9 @@ export default async function AdminDashboardPage() {
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="bg-purple-100 p-3 rounded-full">
-                <DollarSign className="h-6 w-6 text-purple-600" />
+                  <span className="test-green-500">
+                    INR
+                  </span>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
